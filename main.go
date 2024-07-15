@@ -16,11 +16,6 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-//const (
-//	storagePath = "./database/users.db"
-//	botToken    = "1060049923:AAFK_hdwWz63hy_LPFCZtpCjqJwm0qm7rrA"
-//)
-
 var user *model.User
 
 func main() {
