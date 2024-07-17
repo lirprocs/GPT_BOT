@@ -1,15 +1,11 @@
-package main
+package handlers
 
 import (
-	"GPT_BOT/config"
-	"GPT_BOT/database"
 	"GPT_BOT/lama"
 	model "GPT_BOT/user"
 	"context"
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 	"strings"
 
 	"github.com/go-telegram/bot"
@@ -18,37 +14,7 @@ import (
 
 var user *model.User
 
-func main() {
-	conf := config.New()
-
-	db, err := database.InitDB(conf.StoragePath)
-	if err != nil {
-		log.Println(err)
-	}
-	defer db.Close()
-
-	user = model.NewUser(db)
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	opts := []bot.Option{
-		bot.WithDefaultHandler(handler),
-	}
-
-	b, err := bot.New(conf.BotToken, opts...)
-	if err != nil {
-		panic(err)
-	}
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, helloHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/deletecontext", bot.MatchTypeExact, clearHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/profile", bot.MatchTypeExact, profileHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/model", bot.MatchTypePrefix, changeModelHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/api", bot.MatchTypePrefix, changeApiHandler)
-	b.Start(ctx)
-}
-
-func helloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func HelloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID:    update.Message.Chat.ID,
 		Text:      "Hello, *" + bot.EscapeMarkdown(update.Message.From.FirstName) + "*",
@@ -61,7 +27,7 @@ func helloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	}
 }
 
-func clearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func ClearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	lama.CleanMessage()
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
@@ -70,7 +36,7 @@ func clearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func profileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func ProfileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	u, err := user.GetUser(update)
 	if err != nil {
 		log.Println(err)
@@ -88,7 +54,7 @@ func profileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func changeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func ChangeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	parts := strings.SplitN(update.Message.Text, " ", 2)
 	if len(parts) < 2 {
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -113,7 +79,7 @@ func changeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) 
 	})
 }
 
-func changeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func ChangeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	parts := strings.SplitN(update.Message.Text, " ", 2)
 	if len(parts) < 2 {
 		b.SendMessage(ctx, &bot.SendMessageParams{
@@ -138,7 +104,7 @@ func changeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func handler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
