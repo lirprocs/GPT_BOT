@@ -12,22 +12,35 @@ import (
 	"github.com/go-telegram/bot/models"
 )
 
-var user *model.User
+const (
+	invalidFormatMessage = "Пожалуйста, предоставьте данные в правильном формате."
+)
 
-func HelloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	b.SendMessage(ctx, &bot.SendMessageParams{
-		ChatID:    update.Message.Chat.ID,
-		Text:      "Hello, *" + bot.EscapeMarkdown(update.Message.From.FirstName) + "*",
-		ParseMode: models.ParseModeMarkdown,
-	})
+type Handlers struct {
+	userService *model.User
+}
 
-	err := user.AddUser(update)
-	if err != nil {
-		log.Println(err)
+func NewHandlers(userService *model.User) *Handlers {
+	return &Handlers{
+		userService: userService,
 	}
 }
 
-func ClearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *Handlers) HelloHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	userName := bot.EscapeMarkdown(update.Message.From.FirstName)
+	b.SendMessage(ctx, &bot.SendMessageParams{
+		ChatID:    update.Message.Chat.ID,
+		Text:      "Привет, *" + userName + "*",
+		ParseMode: models.ParseModeMarkdown,
+	})
+
+	err := h.userService.AddUser(update)
+	if err != nil {
+		log.Println("Ошибка при добавлении пользователя:", err)
+	}
+}
+
+func (h *Handlers) ClearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	lama.CleanMessage()
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
@@ -36,17 +49,17 @@ func ClearHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func ProfileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
-	u, err := user.GetUser(update)
+func (h *Handlers) ProfileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+	u, err := h.userService.GetUser(update)
 	if err != nil {
-		log.Println(err)
+		log.Println("Ошибка при получении пользователя:", err)
+		return
 	}
-	text := "ID: " + fmt.Sprintf("%d", u.Id) + "\n" +
-		"Name: " + fmt.Sprintf("%s", u.Name) + "\n" +
-		"Баланс: " + fmt.Sprintf("%d", u.Balance) + "\n" +
-		"Количество запросов: " + fmt.Sprintf("%d", u.NumLama) + "/" + fmt.Sprintf("%d", lama.MaxRequest) + "\n" +
-		"API key: " + fmt.Sprintf("%s", u.APIKey) + "\n" +
-		"Model: " + fmt.Sprintf("%s", u.ModelID) + "\n"
+
+	text := fmt.Sprintf(
+		"ID: %d\nИмя: %s\nБаланс: %d\nКоличество запросов: %d/%d\nAPI ключ: %s\nМодель: %s\n",
+		u.Id, u.Name, u.Balance, u.NumLama, lama.MaxRequest, u.APIKey, u.ModelID,
+	)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{
 		ChatID: update.Message.Chat.ID,
@@ -54,22 +67,20 @@ func ProfileHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func ChangeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *Handlers) ChangeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	parts := strings.SplitN(update.Message.Text, " ", 2)
 	if len(parts) < 2 {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   "Пожалуйста, предоставьте имя модели в формате /model <имя модели>",
+			Text:   invalidFormatMessage,
 		})
 		return
 	}
 
-	infoName := parts[0]
 	modelName := parts[1]
-
-	err := user.UpdateUser(update, infoName, modelName)
+	err := h.userService.UpdateUser(update, "model", modelName)
 	if err != nil {
-		log.Println(err)
+		log.Println("Ошибка при обновлении имени модели:", err)
 		return
 	}
 
@@ -79,22 +90,20 @@ func ChangeModelHandler(ctx context.Context, b *bot.Bot, update *models.Update) 
 	})
 }
 
-func ChangeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *Handlers) ChangeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	parts := strings.SplitN(update.Message.Text, " ", 2)
 	if len(parts) < 2 {
 		b.SendMessage(ctx, &bot.SendMessageParams{
 			ChatID: update.Message.Chat.ID,
-			Text:   "Пожалуйста, предоставьте API ключ в формате /api <ключ>",
+			Text:   invalidFormatMessage,
 		})
 		return
 	}
 
-	infoName := parts[0]
 	apiKey := parts[1]
-
-	err := user.UpdateUser(update, infoName, apiKey)
+	err := h.userService.UpdateUser(update, "api", apiKey)
 	if err != nil {
-		log.Println(err)
+		log.Println("Ошибка при обновлении API ключа:", err)
 		return
 	}
 
@@ -104,18 +113,18 @@ func ChangeApiHandler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	})
 }
 
-func Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
+func (h *Handlers) Handler(ctx context.Context, b *bot.Bot, update *models.Update) {
 	if update.Message == nil {
 		return
 	}
 
-	u, err := user.GetUser(update)
+	u, err := h.userService.GetUser(update)
 	if err != nil {
-		log.Println(err)
+		log.Println("Ошибка при получении пользователя:", err)
+		return
 	}
 
 	lama.SetAPIKey(u.APIKey)
-
 	text := lama.ProcessMessage(update.Message.Text)
 
 	b.SendMessage(ctx, &bot.SendMessageParams{

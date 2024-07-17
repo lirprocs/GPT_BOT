@@ -24,22 +24,23 @@ func main() {
 	defer db.Close()
 
 	user = model.NewUser(db)
+	handler := handlers.NewHandlers(user)
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	opts := []bot.Option{
-		bot.WithDefaultHandler(handlers.Handler),
+		bot.WithDefaultHandler(handler.Handler),
 	}
 
 	b, err := bot.New(conf.BotToken, opts...)
 	if err != nil {
 		panic(err)
 	}
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, handlers.HelloHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/deletecontext", bot.MatchTypeExact, handlers.ClearHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/profile", bot.MatchTypeExact, handlers.ProfileHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/model", bot.MatchTypePrefix, handlers.ChangeModelHandler)
-	b.RegisterHandler(bot.HandlerTypeMessageText, "/api", bot.MatchTypePrefix, handlers.ChangeApiHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/start", bot.MatchTypeExact, handler.HelloHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/deletecontext", bot.MatchTypeExact, handler.ClearHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/profile", bot.MatchTypeExact, handler.ProfileHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/model", bot.MatchTypePrefix, handler.ChangeModelHandler)
+	b.RegisterHandler(bot.HandlerTypeMessageText, "/api", bot.MatchTypePrefix, handler.ChangeApiHandler)
 	b.Start(ctx)
 }
